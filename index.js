@@ -110,7 +110,7 @@ http.createServer((req, res) => {
 			return re.test(req.url)
 		})
 		if (hookedApp) {
-			const branch = app.branch || 'master'
+			const branch = hookedApp.branch || 'master'
 			const appPath = path.resolve(config.root, hookedApp.path || hookedApp.name)
 			req.on('data', chunk => chunks.push(chunk))
 				.on('end', () => {
