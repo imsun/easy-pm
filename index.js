@@ -56,7 +56,6 @@ const apps = config.apps.map(app => {
 					const haveHooks = hooks.reduce((prev, current) => {
 						if (hooksRe.test(current.config.url)) {
 							matchedHook = current.id
-							console.log(current.config.url)
 						}
 						return prev || hooksRe.test(current.config.url)
 					}, false)
