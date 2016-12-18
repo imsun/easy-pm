@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const http = require('http')
 const path = require('path')
 const request = require('request')
@@ -7,20 +8,22 @@ const proxy = require('http-proxy').createProxyServer({})
 const config = require('./config')
 
 config.root = config.root || ''
-const hooksRe = new RegExp(`^(.*?//)*${config.host}/webhook`, 'i')
-const GITHUB_API_HOST = 'http://api.github.com'
+const port = process.env.PORT || config.port || 80
+const portPart = port === 80 || port === 443 ? '' : `:${port}`
+const hooksRe = new RegExp(`^(.*?//)*${config.webhook.host}/hooks`, 'i')
+const GITHUB_API_HOST = 'https://api.github.com'
 const headers = {
 	'User-Agent': 'easy-pm',
 	'Accept': 'application/vnd.github.v3+json'
 }
-if (config.token) {
-	headers.Authorization = `token ${config.token}`
+if (config.webhook.token) {
+	headers.Authorization = `token ${config.webhook.token}`
 }
 
 const routes = {}
 
 const apps = config.apps.map(app => {
-	const appPath = path.resolve(config.root, app.path)
+	const appPath = path.resolve(config.root, app.path || app.name)
 	const port = app.port || ''
 	const files = shell.ls(appPath)
 
@@ -32,8 +35,8 @@ const apps = config.apps.map(app => {
 
 	if (files.stderr !== null) {
 		if (app.repository) {
-			app.branch = app.branch || 'master'
-			shell.exec(`git clone ${app.repository} ${appPath} && cd ${appPath} && git checkout ${app.branch} && npm install`)
+			const branch = app.branch || 'master'
+			shell.exec(`git clone ${app.repository} ${appPath} && cd ${appPath} && git checkout ${branch} && npm install`)
 		} else {
 			console.log(`Can't find ${appPath}`)
 		}
@@ -49,7 +52,12 @@ const apps = config.apps.map(app => {
 			}, (err, res, body) => {
 				try {
 					const hooks = JSON.parse(body)
+					let matchedHook = ''
 					const haveHooks = hooks.reduce((prev, current) => {
+						if (hooksRe.test(current.config.url)) {
+							matchedHook = current.id
+							console.log(current.config.url)
+						}
 						return prev || hooksRe.test(current.config.url)
 					}, false)
 					if (!haveHooks) {
@@ -62,19 +70,22 @@ const apps = config.apps.map(app => {
 								active: true,
 								events: ['push'],
 								config: {
-									url: `${config.host}/webhook`,
-									content_type: 'json'
+									url: `${config.webhook.host}${portPart}/hooks/${app.name}`,
+									content_type: 'json',
+									secret: config.webhook.token
 								}
 							}
 						})
 					}
-				} catch (e) {}
+				} catch (e) {
+					console.log(res.body)
+				}
 			})
 		}
 	}
 
 	return {
-		name: app.path,
+		name: app.name,
 		cwd: appPath,
 		script: 'npm',
 		args: 'start',
@@ -93,12 +104,27 @@ http.createServer((req, res) => {
 		})
 	} else {
 		console.log(req.headers)
+		const chunks = []
+		const hookedApp = apps.find(app => {
+			const re = new RegExp(`^/hooks/${app.name}/?([\?|#].*)?$`)
+			return re.test(req.url)
+		})
+		if (hookedApp) {
+			const branch = app.branch || 'master'
+			const appPath = path.resolve(config.root, hookedApp.path || hookedApp.name)
+			req.on('data', chunk => chunks.push(chunk))
+				.on('end', () => {
+					const body = Buffer.concat(chunks).toString()
+					const ghSignature = req.headers['x-hub-signature'].replace(/^sha1=/, '')
+					const signature = crypto.createHmac('sha1', config.webhook.token).update(body).digest('hex')
+					if (signature === ghSignature) {
+						shell.exec(`cd ${appPath} && git pull && git checkout ${branch} && npm install`)
+					}
+				})
+		}
 		res.end()
 	}
-}).listen(process.env.PORT || 3000)
-
-console.log(apps)
-console.log(routes)
+}).listen(port)
 
 pm2.connect(function(err) {
 	if (err) {
