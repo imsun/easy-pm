@@ -5,8 +5,8 @@ const easyPm = require('../')
 
 program
 	.version(info.version)
-	.command('start <path>')
-	.action(path => easyPm.start(path))
+	.command('start <file>')
+	.action(file => easyPm.start(file))
 	.command('list')
 	.action(() => easyPm.list())
 
