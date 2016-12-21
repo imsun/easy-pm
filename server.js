@@ -33,7 +33,9 @@ username()
 						script: 'npm',
 						args: 'start',
 						watch: true
-					}, app))
+					}, app, {
+						name: `${app.name}-${app.branch || 'master'}`
+					}))
 
 					return new Promise((resolve, reject) => {
 						pm2.connect(err => {
@@ -76,7 +78,7 @@ username()
 							})
 							if (hookedApp) {
 								const branch = hookedApp.branch || 'master'
-								const appPath = path.resolve(root, hookedApp.path || hookedApp.name)
+								const appPath = path.resolve(root, `${hookedApp.name}-${branch}`)
 								req.on('data', chunk => chunks.push(chunk))
 									.on('end', () => {
 										const body = Buffer.concat(chunks).toString()

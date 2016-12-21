@@ -37,9 +37,9 @@ function initFactory(root, config) {
 		headers.Authorization = `token ${config.webhook.token}`
 	}
 	return function(app) {
-		const appPath = path.resolve(root, app.path || app.name)
-
 		const branch = app.branch || 'master'
+		const appPath = path.resolve(root, `${app.name}-${branch}`)
+
 		fs.exists(appPath)
 			.then(exists => {
 				if (!exists) {

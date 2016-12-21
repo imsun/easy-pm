@@ -9,6 +9,7 @@ const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
 
 const configsScriptPath = path.resolve(__dirname, './configs.js')
+const setupScriptPath = path.resolve(__dirname, './setup.js')
 
 module.exports = { start }
 
@@ -21,6 +22,7 @@ function start(relConfigPath) {
 		.then(name => {
 			const rootPrefix = isRoot ? `sudo -u ${name}` : ''
 			shell.exec(`${rootPrefix} node ${configsScriptPath} add ${configPath}`)
+			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
 		})
 		.then(() => fs.readFile(configsFile, 'utf8'))
 		.then(configsStr =>{
