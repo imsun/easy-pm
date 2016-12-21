@@ -132,11 +132,11 @@ function listByConfigs(configPaths) {
 					const cpu = app.monit.cpu + '%'
 					let memory = app.monit.memory / 1024
 					if (memory < 1024) {
-						memory = memory.toFixed(1) + 'KB'
+						memory = memory.toFixed(1) + ' KB'
 					} else if (memory < 1024 * 1024) {
-						memory = (memory / 1024).toFixed(1) + 'MB'
+						memory = (memory / 1024).toFixed(1) + ' MB'
 					} else {
-						memory = (memory / 1024 / 1024).toFixed(1) + 'GB'
+						memory = (memory / 1024 / 1024).toFixed(1) + ' GB'
 					}
 
 					if (configs[configPath]) {
