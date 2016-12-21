@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const program = require('commander')
+const info = require('../package.json')
 const easyPm = require('../')
 
 program
