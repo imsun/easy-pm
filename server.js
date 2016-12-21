@@ -18,24 +18,35 @@ let rootPrefix = ''
 username()
 	.then(name => {
 		rootPrefix = isRoot ? `sudo -u ${name}` : ''
-		shell.exec(`${rootPrefix} node ${setupScriptPath}`)
+		if (!process.env.epm_start) {
+			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
+		}
 		return fs.readFile(configsFile, 'utf8')
 	})
 	.then(configsString => {
-		const configs = configsString.split('\n').filter(s => !/^\s*$/.test(s))
-		configs.forEach(configPath => {
+		const configPaths = configsString.split('\n').filter(s => !/^\s*$/.test(s))
+		configPaths.forEach(configPath => {
 			fs.readFile(configPath, 'utf8')
 				.then(configStr => {
 					const config = JSON.parse(configStr)
+					if (process.env.epm_start) {
+						return config
+					}
 					const root = path.resolve(configPath, resolveHome(config.root))
-					const apps = config.apps.map(app => Object.assign({
-						cwd: path.resolve(root, app.path || app.name),
-						script: 'npm',
-						args: 'start',
-						watch: true
-					}, app, {
-						name: `${app.name}-${app.branch || 'master'}`
-					}))
+					const apps = config.apps.map(app => {
+						app.env = Object.assign({
+							epm_config_path: configPath,
+							epm_server_port: config.port || 80
+						}, app.env)
+						return Object.assign({
+							cwd: path.resolve(root, app.path || app.name),
+							script: 'npm',
+							args: 'start',
+							watch: true
+						}, app, {
+							name: `${app.name}-${app.branch || 'master'}`
+						})
+					})
 
 					return new Promise((resolve, reject) => {
 						pm2.connect(err => {

@@ -49,7 +49,12 @@ function initFactory(root, config) {
 						console.log(`Can't setup ${app.name}`)
 					}
 				} else {
-					shell.exec(`cd ${appPath} && git checkout ${branch} && git pull && npm install`, { silent: true })
+					shell.exec(`cd ${appPath} && git checkout ${branch}`, { silent: true })
+					console.log(`${appPath}: checking for updates...`)
+					shell.exec(`cd ${appPath} && git pull`)
+					console.log(`${appPath}: installing dependencies...`)
+					shell.exec(`cd ${appPath} && npm install --loglevel=error`)
+					console.log('Dependencies installed.')
 				}
 
 				if (config.webhook && config.webhook.host && config.webhook.token && app.repository) {
