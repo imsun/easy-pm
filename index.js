@@ -1,5 +1,6 @@
 const fs = require('fs-promise')
 const path = require('path')
+const crypto = require('crypto')
 const shell = require('shelljs')
 const pm2 = require('pm2')
 const Table = require('cli-table')
@@ -30,28 +31,33 @@ function start(relConfigPath) {
 		.then(() => fs.readFile(configsFile, 'utf8'))
 		.then(configsStr => {
 			configPaths = configsStr.split('\n').filter(s => !/^\s*$/.test(s))
-			return Promise.all(configPaths.map(configPath => fs.readFile(configPath, 'utf8')
-				.then(configStr => {
-					const config = JSON.parse(configStr)
-					const root = path.resolve(configPath, resolveHome(config.root))
-					const apps = config.apps.map(app => {
-						app.env = Object.assign({
-							epm_config_path: configPath,
-							epm_server_port: config.port || 80
-						}, app.env)
-						return Object.assign({
-							cwd: path.resolve(root, app.path || app.name),
-							script: 'npm',
-							args: 'start',
-							watch: true
-						}, app, {
-							name: `${app.name}-${app.branch || 'master'}`
+			return Promise.all(configPaths.map(configPath => {
+				return fs.readFile(configPath, 'utf8')
+					.then(configStr => {
+						const config = JSON.parse(configStr)
+						const root = path.resolve(configPath, resolveHome(config.root))
+						const apps = config.apps.map(app => {
+							const branch = app.branch || 'master'
+							const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
+							console.log(app.name)
+							console.log(configPathHash)
+							app.env = Object.assign({
+								epm_config_path: configPath,
+								epm_server_port: config.port || 80
+							}, app.env)
+							return Object.assign({
+								cwd: path.resolve(root, app.path || app.name),
+								script: 'npm',
+								args: 'start',
+								watch: true
+							}, app, {
+								name: `${app.name}-${branch}-${configPathHash}`
+							})
 						})
-					})
 
-					return apps
-				})
-			))
+						return apps
+					})
+			}))
 		})
 		.then(appGroups => {
 			const apps = appGroups.reduce((prev, appList) => prev.concat(appList), [])
@@ -117,6 +123,7 @@ function listByConfigs(configPaths) {
 				apps.forEach((app) => {
 					const configPath = app.pm2_env.epm_config_path
 					const pmName = app.name.split('-')
+					pmName.pop()
 					const branch = pmName.pop()
 					const name = pmName.join('-')
 					const pid = app.pid

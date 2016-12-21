@@ -34,6 +34,8 @@ username()
 					}
 					const root = path.resolve(configPath, resolveHome(config.root))
 					const apps = config.apps.map(app => {
+						const branch = app.branch || 'master'
+						const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
 						app.env = Object.assign({
 							epm_config_path: configPath,
 							epm_server_port: config.port || 80
@@ -44,7 +46,7 @@ username()
 							args: 'start',
 							watch: true
 						}, app, {
-							name: `${app.name}-${app.branch || 'master'}`
+							name: `${app.name}-${branch}-${configPathHash}`
 						})
 					})
 
