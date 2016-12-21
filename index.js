@@ -11,7 +11,7 @@ const configsFile = path.resolve(homeDir, './configs')
 const configsScriptPath = path.resolve(__dirname, './configs.js')
 const setupScriptPath = path.resolve(__dirname, './setup.js')
 
-module.exports = { start }
+module.exports = { start, list }
 
 function start(relConfigPath) {
 	const isRoot = process.getuid() === 0
@@ -25,7 +25,7 @@ function start(relConfigPath) {
 			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
 		})
 		.then(() => fs.readFile(configsFile, 'utf8'))
-		.then(configsStr =>{
+		.then(configsStr => {
 			const configs = configsStr.split('\n').filter(s => !/^\s*$/.test(s))
 			return new Promise((resolve, reject) => {
 				pm2.connect(err => {
@@ -46,9 +46,17 @@ function start(relConfigPath) {
 				})
 			})
 		})
-		.then(configs => {
-			return Promise.all(configs.map(configPath => fs.readFile(configPath, 'utf8')))
-		})
+		.then(configs => listByConfigs(configs))
+}
+
+function list() {
+	return fs.readFile(configsFile, 'utf8')
+		.then(configsStr => configsStr.split('\n').filter(s => !/^\s*$/.test(s)))
+		.then(configs => listByConfigs(configs))
+}
+
+function listByConfigs(configs) {
+	return Promise.all(configs.map(configPath => fs.readFile(configPath, 'utf8')))
 		.then(configStrs => configStrs.map(configStr => JSON.parse(configStr)))
 		.then(configs => {
 			configs.forEach(config => {
