@@ -9,6 +9,7 @@ const resolveHome = require('./resolveHome')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
+const startFlagFile = path.resolve(homeDir, './start_flag')
 
 const configsScriptPath = path.resolve(__dirname, './configs.js')
 const setupScriptPath = path.resolve(__dirname, './setup.js')
@@ -47,6 +48,7 @@ function start(relConfigPath) {
 			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
 			console.log('\nStarting easy-pm-server...')
 		})
+		.then(() => fs.writeFile(startFlagFile, '1', 'utf8'))
 		.then(() => fs.readFile(configsFile, 'utf8'))
 		.then(configsStr => {
 			configPaths = configsStr.split('\n').filter(s => !/^\s*$/.test(s))

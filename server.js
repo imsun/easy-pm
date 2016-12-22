@@ -10,16 +10,22 @@ const resolveHome = require('./resolveHome')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
+const startFlagFile = path.resolve(homeDir, './start_flag')
 
 const setupScriptPath = path.resolve(__dirname, './setup.js')
 const isRoot = process.getuid() === 0
 let rootPrefix = ''
+let startFlag = false
 
 
-username()
+fs.readFile(startFlagFile, 'utf8')
+	.then(flag => {
+		startFlag = flag === '1'
+		return username()
+	})
 	.then(name => {
 		rootPrefix = isRoot ? `sudo -u ${name}` : ''
-		if (process.env.epm_start) return
+		if (startFlag) return
 		shell.exec(`${rootPrefix} node ${setupScriptPath}`)
 		return new Promise((resolve, reject) => {
 			pm2.connect(err => {
@@ -49,9 +55,8 @@ username()
 			fs.readFile(configPath, 'utf8')
 				.then(configStr => {
 					const config = JSON.parse(configStr)
-					if (process.env.epm_start) {
-						return config
-					}
+					if (startFlag) return config
+
 					const root = path.resolve(configPath, resolveHome(config.root))
 					const apps = config.apps.map(app => {
 						const branch = app.branch || 'master'
@@ -126,5 +131,6 @@ username()
 						}
 					}).listen(port)
 				})
+				.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
 		})
 	})
