@@ -20,8 +20,27 @@ function start(relConfigPath) {
 
 	const configPath = path.resolve(process.cwd(), resolveHome(relConfigPath))
 	let configPaths = []
+	return new Promise((resolve, reject) => {
+		pm2.connect(err => {
+			if (err) return reject(err)
 
-	username()
+			pm2.list((err, apps) => {
+				if (err) return reject(err)
+				resolve(apps)
+			})
+		})
+	})
+		.then(apps => Promise.all(
+			apps.filter(app => app.pm2_env.epm_config_path)
+				.map(app => new Promise((resolve, reject) => {
+					pm2.delete(app.pm_id, err => {
+						if (err) return reject(err)
+						resolve()
+					})
+				}))
+		))
+		.then(() => pm2.disconnect())
+		.then(() => username())
 		.then(name => {
 			const rootPrefix = isRoot ? `sudo -u ${name}` : ''
 			shell.exec(`${rootPrefix} node ${configsScriptPath} add ${configPath}`)
@@ -62,7 +81,7 @@ function start(relConfigPath) {
 			apps.push({
 				name: 'easy-pm-server',
 				script: './server.js',
-				watch: [configsFile].concat(configPaths),
+				watch: configPaths,
 				env: {
 					epm_start: true
 				}
@@ -85,7 +104,7 @@ function start(relConfigPath) {
 		})
 		.then(() => {
 			console.log('easy-pm-server started\n')
-			listByConfigs(configPaths)
+			return listByConfigs(configPaths)
 		})
 }
 
@@ -109,10 +128,7 @@ function listByConfigs(configPaths) {
 	})
 	return new Promise((resolve, reject) => {
 		pm2.connect(err => {
-			if (err) {
-				console.log(err)
-				process.exit(2)
-			}
+			if (err) return reject(err)
 
 			pm2.list((err, apps) => {
 				pm2.disconnect()

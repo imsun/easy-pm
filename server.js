@@ -15,14 +15,34 @@ const setupScriptPath = path.resolve(__dirname, './setup.js')
 const isRoot = process.getuid() === 0
 let rootPrefix = ''
 
+
 username()
 	.then(name => {
 		rootPrefix = isRoot ? `sudo -u ${name}` : ''
-		if (!process.env.epm_start) {
-			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
-		}
-		return fs.readFile(configsFile, 'utf8')
+		if (process.env.epm_start) return
+		shell.exec(`${rootPrefix} node ${setupScriptPath}`)
+		return new Promise((resolve, reject) => {
+			pm2.connect(err => {
+				if (err) return reject(err)
+
+				pm2.list((err, apps) => {
+					if (err) return reject(err)
+					resolve(apps)
+				})
+			})
+		})
+			.then(apps => Promise.all(
+				apps.filter(app => app.pm2_env.epm_config_path)
+					.map(app => new Promise((resolve, reject) => {
+						pm2.delete(app.pm_id, err => {
+							if (err) return reject(err)
+							resolve()
+						})
+					}))
+			))
+			.then(() => pm2.disconnect())
 	})
+	.then(() => fs.readFile(configsFile, 'utf8'))
 	.then(configsString => {
 		const configPaths = configsString.split('\n').filter(s => !/^\s*$/.test(s))
 		configPaths.forEach(configPath => {
@@ -56,7 +76,7 @@ username()
 								reject(err)
 								process.exit(2)
 							}
-							pm2.start({apps}, err => {
+							pm2.start({ apps }, err => {
 								pm2.disconnect()
 								resolve(config)
 								if (err) reject(err)
