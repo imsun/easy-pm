@@ -83,18 +83,12 @@ function start(relConfigPath) {
 			apps.push({
 				name: 'easy-pm-server',
 				script: './server.js',
-				watch: configPaths,
-				env: {
-					epm_start: true
-				}
+				watch: configPaths
 			})
 
 			return new Promise((resolve, reject) => {
 				pm2.connect(err => {
-					if (err) {
-						console.log(err)
-						process.exit(2)
-					}
+					if (err) return reject(err)
 
 					pm2.start({ apps }, err => {
 						pm2.disconnect()
