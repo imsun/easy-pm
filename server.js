@@ -112,7 +112,8 @@ fs.readFile(startFlagFile, 'utf8')
 			const host = req.headers.host.split(':')[0]
 			if (routes[host]) {
 				proxy.web(req, res, {
-					target: `http://127.0.0.1:${routes[host]}`
+					target: `http://127.0.0.1:${routes[host]}`,
+					ws: true
 				}, err => {
 					console.log(err)
 					res.end()
