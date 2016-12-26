@@ -66,7 +66,7 @@ fs.readFile(startFlagFile, 'utf8')
 		const config = JSON.parse(configStr)
 		if (startFlag) return config
 
-		const root = path.resolve(configPath, resolveHome(config.root))
+		const root = path.resolve(configPath, '..', resolveHome(config.root))
 		const apps = config.apps.map(app => {
 			const branch = app.branch || 'master'
 			const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
@@ -97,7 +97,7 @@ fs.readFile(startFlagFile, 'utf8')
 	})
 	.then(configs => Promise.all(configs.map((config, index) => {
 		const configPath = configPaths[index]
-		const root = path.resolve(configPath, resolveHome(config.root))
+		const root = path.resolve(configPath, '..', resolveHome(config.root))
 		const port = config.port || 80
 
 		const routes = {}
@@ -125,7 +125,7 @@ fs.readFile(startFlagFile, 'utf8')
 				})
 				if (hookedApp) {
 					const branch = hookedApp.branch || 'master'
-					const appPath = path.resolve(root, `${hookedApp.name}-${branch}`)
+					const appPath = path.resolve(root, `${hookedApp.name}@${branch}`)
 					req.on('data', chunk => chunks.push(chunk))
 						.on('end', () => {
 							const body = Buffer.concat(chunks).toString()

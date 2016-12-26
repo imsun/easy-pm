@@ -15,7 +15,7 @@ fs.readFile(configsFile, 'utf8')
 			fs.readFile(configPath, 'utf8')
 				.then(configStr => {
 					const config = JSON.parse(configStr)
-					const root = path.resolve(configPath, resolveHome(config.root))
+					const root = path.resolve(configPath, '..', resolveHome(config.root))
 					const appInit = initFactory(root, config)
 					config.apps.forEach(appInit)
 				})
@@ -38,7 +38,7 @@ function initFactory(root, config) {
 	}
 	return function(app) {
 		const branch = app.branch || 'master'
-		const appPath = path.resolve(root, `${app.name}-${branch}`)
+		const appPath = path.resolve(root, `${app.name}@${branch}`)
 
 		fs.exists(appPath)
 			.then(exists => {
