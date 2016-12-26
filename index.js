@@ -136,7 +136,7 @@ function listByConfigs(configPaths) {
 					pmName.pop()
 					const branch = pmName.pop()
 					const name = pmName.join('-')
-					const pid = app.pid
+					const pid = app.pid || 'N/A'
 					const status = app.pm2_env.status
 					const restart = app.pm2_env.restart_time
 					const cpu = app.monit.cpu + '%'
