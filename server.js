@@ -75,7 +75,7 @@ fs.readFile(startFlagFile, 'utf8')
 				epm_server_port: config.port || 80
 			}, app.env)
 			return Object.assign({
-				cwd: path.resolve(root, app.path || app.name),
+				cwd: path.resolve(root, `${app.name}@${branch}`),
 				script: 'npm',
 				args: 'start',
 				watch: true

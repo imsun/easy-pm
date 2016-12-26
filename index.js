@@ -56,7 +56,7 @@ function start(relConfigPath) {
 				return fs.readFile(configPath, 'utf8')
 					.then(configStr => {
 						const config = JSON.parse(configStr)
-						const root = path.resolve(configPath, resolveHome(config.root))
+						const root = path.resolve(configPath, '..', resolveHome(config.root))
 						const apps = config.apps.map(app => {
 							const branch = app.branch || 'master'
 							const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
@@ -65,7 +65,7 @@ function start(relConfigPath) {
 								epm_server_port: config.port || 80
 							}, app.env)
 							return Object.assign({
-								cwd: path.resolve(root, app.path || app.name),
+								cwd: path.resolve(root, `${app.name}@${branch}`),
 								script: 'npm',
 								args: 'start',
 								watch: true
