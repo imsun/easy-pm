@@ -62,7 +62,8 @@ function start(relConfigPath) {
 							const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
 							app.env = Object.assign({
 								epm_config_path: configPath,
-								epm_server_port: config.port || 80
+								epm_server_port: config.port || 80,
+								PORT: app.port
 							}, app.env)
 							return Object.assign({
 								cwd: path.resolve(root, `${app.name}@${branch}`),

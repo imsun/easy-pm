@@ -74,7 +74,8 @@ fs.readFile(startFlagFile, 'utf8')
 			const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
 			app.env = Object.assign({
 				epm_config_path: configPath,
-				epm_server_port: config.port || 80
+				epm_server_port: config.port || 80,
+				PORT: app.port
 			}, app.env)
 			return Object.assign({
 				cwd: path.resolve(root, `${app.name}@${branch}`),
@@ -106,9 +107,10 @@ function createServer(configPath, config) {
 
 	const routes = {}
 	config.apps.forEach(app => {
-		if (app.domains && app.env && app.env.PORT) {
+		const port = app.env && app.env.PORT || app.port
+		if (app.domains && port) {
 			app.domains.forEach(domain => {
-				routes[domain] = app.env.PORT
+				routes[domain] = port
 			})
 		}
 	})
