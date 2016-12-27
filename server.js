@@ -1,5 +1,7 @@
 const fs = require('fs-promise')
+const tls = require('tls')
 const http = require('http')
+const https = require('https')
 const path = require('path')
 const crypto = require('crypto')
 const shell = require('shelljs')
@@ -95,50 +97,88 @@ fs.readFile(startFlagFile, 'utf8')
 		pm2.disconnect()
 		return configs
 	})
-	.then(configs => Promise.all(configs.map((config, index) => {
-		const configPath = configPaths[index]
-		const root = path.resolve(configPath, '..', resolveHome(config.root))
-		const port = config.port || 80
+	.then(configs => Promise.all(configs.map((config, index) => createServer(configs[index], config))))
+	.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
 
-		const routes = {}
-		config.apps.forEach(app => {
-			if (app.domains && app.env && app.env.PORT) {
-				app.domains.forEach(domain => {
-					routes[domain] = app.env.PORT
+function createServer(configPath, config) {
+	const root = path.resolve(configPath, '..', resolveHome(config.root))
+	const port = config.port || 80
+
+	const routes = {}
+	config.apps.forEach(app => {
+		if (app.domains && app.env && app.env.PORT) {
+			app.domains.forEach(domain => {
+				routes[domain] = app.env.PORT
+			})
+		}
+	})
+	function serverHandler(req, res) {
+		const host = req.headers.host.split(':')[0]
+		if (routes[host]) {
+			proxy.web(req, res, {
+				target: `http://127.0.0.1:${routes[host]}`,
+				ws: true
+			}, err => {
+				console.log(err)
+				res.end()
+			})
+		} else {
+			const chunks = []
+			const hookedApp = config.apps.find(app => {
+				const re = new RegExp(`^/hooks/${app.name}/?([\?|#].*)?$`)
+				return re.test(req.url)
+			})
+			if (hookedApp) {
+				const branch = hookedApp.branch || 'master'
+				const appPath = path.resolve(root, `${hookedApp.name}@${branch}`)
+				req.on('data', chunk => chunks.push(chunk))
+					.on('end', () => {
+						const body = Buffer.concat(chunks).toString()
+						const ghSignature = req.headers['x-hub-signature'].replace(/^sha1=/, '')
+						const signature = crypto.createHmac('sha1', config.webhook.token).update(body).digest('hex')
+						if (signature === ghSignature) {
+							shell.exec(`cd ${appPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} npm install`)
+						}
+					})
+			}
+			res.end()
+		}
+	}
+	http.createServer(serverHandler).listen(port)
+
+	if (config.ssl) {
+		const ssl = config.ssl
+		const port = ssl.port || 443
+		const secureContext = {}
+		Object.keys(ssl.sites).forEach(domain => {
+			const site = ssl.sites[domain]
+			if (site === 'auto') {
+				// acme
+			} else {
+				const context = {}
+				;['key', 'cert', 'ca'].forEach(key => {
+					if (site[key]) {
+						context[key] = fs.readFileSync(path.resolve(configPath, '..', resolveHome(site[key])), 'utf8')
+					}
 				})
+				secureContext[domain] = tls.createSecureContext(context)
 			}
 		})
-		http.createServer((req, res) => {
-			const host = req.headers.host.split(':')[0]
-			if (routes[host]) {
-				proxy.web(req, res, {
-					target: `http://127.0.0.1:${routes[host]}`,
-					ws: true
-				}, err => {
-					console.log(err)
-					res.end()
-				})
-			} else {
-				const chunks = []
-				const hookedApp = config.apps.find(app => {
-					const re = new RegExp(`^/hooks/${app.name}/?([\?|#].*)?$`)
-					return re.test(req.url)
-				})
-				if (hookedApp) {
-					const branch = hookedApp.branch || 'master'
-					const appPath = path.resolve(root, `${hookedApp.name}@${branch}`)
-					req.on('data', chunk => chunks.push(chunk))
-						.on('end', () => {
-							const body = Buffer.concat(chunks).toString()
-							const ghSignature = req.headers['x-hub-signature'].replace(/^sha1=/, '')
-							const signature = crypto.createHmac('sha1', config.webhook.token).update(body).digest('hex')
-							if (signature === ghSignature) {
-								shell.exec(`cd ${appPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} npm install`)
-							}
-						})
+		const options = {
+			SNICallback(domain, callback) {
+				if (secureContext[domain]) {
+					if (callback) {
+						callback(null, secureContext[domain])
+					} else {
+						return secureContext[domain]
+					}
+				} else {
+					throw new Error(`https not supported for ${domain}`)
 				}
-				res.end()
-			}
-		}).listen(port)
-	})))
-	.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
+			},
+			key: fs.readFileSync(path.resolve(__dirname, './certs/server.key')),
+			cert: fs.readFileSync(path.resolve(__dirname, './certs/server.crt'))
+		}
+		https.createServer(options, serverHandler).listen(port)
+	}
+}
