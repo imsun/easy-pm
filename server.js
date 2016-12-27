@@ -1,7 +1,7 @@
 const fs = require('fs-promise')
 const tls = require('tls')
 const http = require('http')
-const https = require('https')
+const spdy = require('spdy')
 const path = require('path')
 const crypto = require('crypto')
 const shell = require('shelljs')
@@ -175,10 +175,8 @@ function createServer(configPath, config) {
 				} else {
 					throw new Error(`https not supported for ${domain}`)
 				}
-			},
-			key: fs.readFileSync(path.resolve(__dirname, './certs/server.key')),
-			cert: fs.readFileSync(path.resolve(__dirname, './certs/server.crt'))
+			}
 		}
-		https.createServer(options, serverHandler).listen(port)
+		spdy.createServer(options, serverHandler).listen(port)
 	}
 }
