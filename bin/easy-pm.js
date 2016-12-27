@@ -7,7 +7,8 @@ program
 	.version(info.version)
 	.command('start <file>')
 	.action(file => easyPm.start(file))
-	.command('list')
+
+program.command('list')
 	.action(() => easyPm.list())
 
 program.parse(process.argv)
