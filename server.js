@@ -126,6 +126,7 @@ fs.readFile(startFlagFile, 'utf8')
 function createServer(configPath, config) {
 	const root = path.resolve(configPath, '..', resolveHome(config.root))
 	const port = config.port || 80
+	const ssl = config.ssl
 
 	const routes = {}
 	config.apps.forEach(app => {
@@ -138,6 +139,16 @@ function createServer(configPath, config) {
 	})
 	function serverHandler(req, res) {
 		const host = req.headers.host.split(':')[0]
+		if (ssl
+			&& ssl.sites
+			&& !ssl.disable_redirect
+			&& ssl.sites[host]
+			&& !ssl.sites[host].disable_redirect
+			&& req.protocol !== 'https') {
+			const port = ssl.port || 443
+			res.redirect(`https://${host}:${port}${req.url}`)
+			return
+		}
 		if (routes[host]) {
 			proxy.web(req, res, {
 				target: `http://127.0.0.1:${routes[host]}`,
@@ -173,25 +184,26 @@ function createServer(configPath, config) {
 	server.get('*', serverHandler)
 	http.createServer(server).listen(port)
 
-	if (config.ssl) {
-		const ssl = config.ssl
+	if (ssl) {
 		const port = ssl.port || 443
 		const secureContext = {}
 		const acmeDomains = []
-		Object.keys(ssl.sites).forEach(domain => {
-			const site = ssl.sites[domain]
-			if (site === 'auto') {
-				acmeDomains.push(domain)
-			} else {
-				const context = {}
-				;['key', 'cert', 'ca'].forEach(key => {
-					if (site[key]) {
-						context[key] = fs.readFileSync(path.resolve(configPath, '..', resolveHome(site[key])), 'utf8')
-					}
-				})
-				secureContext[domain] = tls.createSecureContext(context)
-			}
-		})
+		if (ssl.sites) {
+			Object.keys(ssl.sites).forEach(domain => {
+				const site = ssl.sites[domain]
+				if (site === 'auto') {
+					acmeDomains.push(domain)
+				} else {
+					const context = {}
+					;['key', 'cert', 'ca'].forEach(key => {
+						if (site[key]) {
+							context[key] = fs.readFileSync(path.resolve(configPath, '..', resolveHome(site[key])), 'utf8')
+						}
+					})
+					secureContext[domain] = tls.createSecureContext(context)
+				}
+			})
+		}
 		const options = {
 			SNICallback(domain, callback) {
 				if (secureContext[domain]) {
