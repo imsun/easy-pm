@@ -14,7 +14,39 @@ const startFlagFile = path.resolve(homeDir, './start_flag')
 const configsScriptPath = path.resolve(__dirname, './configs.js')
 const setupScriptPath = path.resolve(__dirname, './setup.js')
 
-module.exports = { start, list }
+module.exports = { start, list, stop }
+
+const uuid = () => Date.now().toString(36) + Math.random().toString(36).substring(2)
+const __msgListeners = {}
+const sendMessage = (id, msg) => {
+	const msgId = uuid()
+	return new Promise((resolve, reject) => {
+		// There are some mistakes in PM2 API doc
+		// Check:
+		//   - https://github.com/Unitech/pm2/issues/2070
+		//   - /node_modules/pm2/lib/God/ActionMethods.js `God.sendDataToProcessId`
+		pm2.sendDataToProcessId(id, {
+			id,
+			data: {
+				msg,
+				id: msgId
+			},
+			type: 'process:msg',
+			topic: 'stupid pm2'
+		}, err => {
+			if (err) return reject(err)
+			__msgListeners[msgId] = resolve
+		})
+	})
+}
+pm2.launchBus((err, bus) => {
+	bus.on('process:msg', packet => {
+		if (__msgListeners[packet.data.id]) {
+			__msgListeners[packet.data.id](packet.data.res)
+			__msgListeners[packet.data.id] = undefined
+		}
+	})
+})
 
 function start(relConfigPath) {
 	const isRoot = process.getuid() === 0
@@ -84,7 +116,10 @@ function start(relConfigPath) {
 			apps.push({
 				name: 'easy-pm-server',
 				script: './server.js',
-				watch: configPaths
+				watch: configPaths,
+				env: {
+					epm_server: true
+				}
 			})
 
 			return new Promise((resolve, reject) => {
@@ -100,9 +135,57 @@ function start(relConfigPath) {
 			})
 		})
 		.then(() => {
-			console.log('easy-pm-server started\n')
+			console.log('easy-pm-server started.\n')
 			return listByConfigs(configPaths)
 		})
+}
+
+function stop(relConfigPath) {
+	console.log('Stopping applications...')
+	const isRoot = process.getuid() === 0
+	const configPath = path.resolve(process.cwd(), resolveHome(relConfigPath))
+	username()
+		.then(name => {
+			const rootPrefix = isRoot ? `sudo -u ${name}` : ''
+			shell.exec(`${rootPrefix} node ${configsScriptPath} delete ${configPath}`)
+			return new Promise((resolve, reject) => {
+				pm2.connect(err => {
+					if (err) return reject(err)
+
+					pm2.list((err, apps) => {
+						if (err) return reject(err)
+						resolve(apps)
+					})
+				})
+			})
+		})
+		.then(apps => new Promise(resolve => {
+			apps.forEach(app => {
+				if (app.pm2_env.epm_server) {
+					sendMessage(app.pm_id, {
+						command: 'stop',
+						data: [configPath]
+					})
+						.then(res => resolve(apps))
+				}
+			})
+		}))
+		.then(apps => Promise.all(
+			apps
+				.filter(app => app.pm2_env.epm_config_path === configPath)
+				.map(app => new Promise((resolve, reject) => {
+					pm2.delete(app.pm_id, err => {
+						if (err) return reject(err)
+						resolve()
+					})
+				}))
+		))
+		.then(() => {
+			pm2.disconnect()
+			console.log('Applications stopped.')
+			list()
+		})
+
 }
 
 function list() {
@@ -131,7 +214,7 @@ function listByConfigs(configPaths) {
 				pm2.disconnect()
 				if (err) return reject(err)
 
-				apps.forEach((app) => {
+				apps.forEach(app => {
 					const configPath = app.pm2_env.epm_config_path
 					const pmName = app.name.split('-')
 					pmName.pop()

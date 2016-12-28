@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 const program = require('commander')
 const info = require('../package.json')
 const easyPm = require('../')
@@ -10,5 +9,8 @@ program
 
 program.command('list')
 	.action(() => easyPm.list())
+
+program.command('stop <file>')
+	.action(file => easyPm.stop(file))
 
 program.parse(process.argv)

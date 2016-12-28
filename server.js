@@ -42,6 +42,26 @@ let rootPrefix = ''
 let startFlag = false
 let configPaths = []
 
+const servers = {}
+
+process.on('message', function(packet) {
+	const msg = packet.data.msg
+	const command = msg.command
+	let res = {}
+	switch (command) {
+		case 'stop':
+			stop(msg.data)
+			break
+	}
+	process.send({
+		type : 'process:msg',
+		data : {
+			res,
+			id: packet.data.id,
+		}
+	})
+})
+
 fs.readFile(startFlagFile, 'utf8')
 	.then(flag => {
 		startFlag = flag === '1'
@@ -123,6 +143,14 @@ fs.readFile(startFlagFile, 'utf8')
 	.then(configs => Promise.all(configs.map((config, index) => createServer(configPaths[index], config))))
 	.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
 
+function stop(configPaths) {
+	configPaths.forEach(configPath => {
+		if (servers[configPath]) {
+			servers[configPath].forEach(server => server.close())
+		}
+	})
+}
+
 function createServer(configPath, config) {
 	const root = path.resolve(configPath, '..', resolveHome(config.root))
 	const port = config.port || 80
@@ -137,7 +165,10 @@ function createServer(configPath, config) {
 			})
 		}
 	})
-	function serverHandler(req, res) {
+
+	const serverHandler = express()
+	serverHandler.use('/', le.middleware())
+	serverHandler.get('*', (req, res) => {
 		const host = req.headers.host.split(':')[0]
 		if (ssl
 			&& ssl.sites
@@ -178,11 +209,10 @@ function createServer(configPath, config) {
 			}
 			res.end()
 		}
-	}
-	const server = express()
-	server.use('/', le.middleware())
-	server.get('*', serverHandler)
-	http.createServer(server).listen(port)
+	})
+	const server = http.createServer(serverHandler).listen(port)
+	servers[configPath] = servers[configPath] || []
+	servers[configPath].push(server)
 
 	if (ssl) {
 		const port = ssl.port || 443
@@ -218,7 +248,7 @@ function createServer(configPath, config) {
 			}
 		}
 		if (acmeDomains.length <= 0) {
-			spdy.createServer(options, server).listen(port)
+			spdy.createServer(options, serverHandler).listen(port)
 			return
 		}
 
@@ -242,7 +272,8 @@ function createServer(configPath, config) {
 						cert: results[index].cert
 					})
 				})
-				spdy.createServer(options, server).listen(port)
+				const server = spdy.createServer(options, serverHandler).listen(port)
+				servers[configPath].push(server)
 			})
 	}
 }
