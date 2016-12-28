@@ -28,7 +28,7 @@ function leAgree(opts, agreeCb) {
 	agreeCb(null, opts.tosUrl)
 }
 const le = LE.create({
-	server: LE.stagingServerUrl,
+	server: LE.productionServerUrl,
 	store: leStore,
 	challenges: { 'http-01': leChallenge },
 	challengeType: 'http-01',
@@ -226,7 +226,7 @@ function createServer(configPath, config) {
 			.then(results => {
 				acmeDomains.forEach(domain => {
 					secureContext[domain] = tls.createSecureContext({
-						key: results.privateKey,
+						key: results.privkey,
 						cert: results.cert
 					})
 				})
