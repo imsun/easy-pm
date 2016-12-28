@@ -210,24 +210,24 @@ function createServer(configPath, config) {
 			return
 		}
 
-		le.check({ domains: acmeDomains })
+		return Promise.all(acmeDomains.map(domain => le.check({ domains: [domain] })))
 			.then(results => {
-				if (results) {
+				if (results.reduce((prev, current) => prev && current, true)) {
 					return results
 				}
-				return le.register({
-					domains: acmeDomains,
+				return Promise.all(acmeDomains.map(domain => le.register({
+					domains: [domain],
 					email: ssl.email || 'me@imsun.net',
 					agreeTos: true,
 					rsaKeySize: ssl.rsaKeySize || 2048,
 					challengeType: 'http-01'
-				})
+				})))
 			})
 			.then(results => {
-				acmeDomains.forEach(domain => {
+				acmeDomains.forEach((domain, index) => {
 					secureContext[domain] = tls.createSecureContext({
-						key: results.privkey,
-						cert: results.cert
+						key: results[index].privkey,
+						cert: results[index].cert
 					})
 				})
 				spdy.createServer(options, server).listen(port)
