@@ -2,6 +2,7 @@ const fs = require('fs-promise')
 const tls = require('tls')
 const http = require('http')
 const spdy = require('spdy')
+const express = require('express')
 const path = require('path')
 const crypto = require('crypto')
 const shell = require('shelljs')
@@ -13,6 +14,27 @@ const resolveHome = require('./resolveHome')
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
 const startFlagFile = path.resolve(homeDir, './start_flag')
+
+const LE = require('letsencrypt')
+const leStore = require('le-store-certbot').create({
+	configDir: path.resolve(homeDir, './letsencrypt/etc'),
+	debug: false
+})
+const leChallenge = require('le-challenge-fs').create({
+	webrootPath: path.resolve(homeDir, './letsencrypt/var/'),
+	debug: false
+})
+function leAgree(opts, agreeCb) {
+	agreeCb(null, opts.tosUrl)
+}
+const le = LE.create({
+	server: LE.stagingServerUrl,
+	store: leStore,
+	challenges: { 'http-01': leChallenge },
+	challengeType: 'http-01',
+	agreeToTerms: leAgree,
+	debug: false
+})
 
 const setupScriptPath = path.resolve(__dirname, './setup.js')
 const isRoot = process.getuid() === 0
@@ -98,7 +120,7 @@ fs.readFile(startFlagFile, 'utf8')
 		pm2.disconnect()
 		return configs
 	})
-	.then(configs => Promise.all(configs.map((config, index) => createServer(configs[index], config))))
+	.then(configs => Promise.all(configs.map((config, index) => createServer(configPaths[index], config))))
 	.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
 
 function createServer(configPath, config) {
@@ -146,16 +168,20 @@ function createServer(configPath, config) {
 			res.end()
 		}
 	}
-	http.createServer(serverHandler).listen(port)
+	const server = express()
+	server.use('/', le.middleware())
+	server.get('*', serverHandler)
+	http.createServer(server).listen(port)
 
 	if (config.ssl) {
 		const ssl = config.ssl
 		const port = ssl.port || 443
 		const secureContext = {}
+		const acmeDomains = []
 		Object.keys(ssl.sites).forEach(domain => {
 			const site = ssl.sites[domain]
 			if (site === 'auto') {
-				// acme
+				acmeDomains.push(domain)
 			} else {
 				const context = {}
 				;['key', 'cert', 'ca'].forEach(key => {
@@ -179,6 +205,32 @@ function createServer(configPath, config) {
 				}
 			}
 		}
-		spdy.createServer(options, serverHandler).listen(port)
+		if (acmeDomains.length <= 0) {
+			spdy.createServer(options, server).listen(port)
+			return
+		}
+
+		le.check({ domains: acmeDomains })
+			.then(results => {
+				if (results) {
+					return results
+				}
+				return le.register({
+					domains: acmeDomains,
+					email: ssl.email || 'me@imsun.net',
+					agreeTos: true,
+					rsaKeySize: ssl.rsaKeySize || 2048,
+					challengeType: 'http-01'
+				})
+			})
+			.then(results => {
+				acmeDomains.forEach(domain => {
+					secureContext[domain] = tls.createSecureContext({
+						key: results.privateKey,
+						cert: results.cert
+					})
+				})
+				spdy.createServer(options, server).listen(port)
+			})
 	}
 }
