@@ -168,7 +168,7 @@ function createServer(configPath, config) {
 
 	const serverHandler = express()
 	serverHandler.use('/', le.middleware())
-	serverHandler.get('*', (req, res) => {
+	serverHandler.all('*', (req, res) => {
 		const host = req.headers.host.split(':')[0]
 		if (ssl
 			&& ssl.sites
