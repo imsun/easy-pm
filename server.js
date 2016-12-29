@@ -3,6 +3,7 @@ const tls = require('tls')
 const http = require('http')
 const spdy = require('spdy')
 const express = require('express')
+const compression = require('compression')
 const path = require('path')
 const crypto = require('crypto')
 const shell = require('shelljs')
@@ -156,18 +157,33 @@ function createServer(configPath, config) {
 	const port = config.port || 80
 	const ssl = config.ssl
 
-	const routes = {}
+	const sites = {}
 	config.apps.forEach(app => {
 		const port = app.env && app.env.PORT || app.port
+		const gzip = app.gzip === undefined ? true : app.gzip
 		if (app.domains && port) {
 			app.domains.forEach(domain => {
-				routes[domain] = port
+				sites[domain] = sites[domain] || {}
+				sites[domain].port = port
+				sites[domain].gzip = gzip
 			})
 		}
 	})
 
 	const serverHandler = express()
 	serverHandler.use('/', le.middleware())
+	serverHandler.use(compression({
+		filter: (req, res) => {
+			const host = req.headers.host.split(':')[0]
+			if (req.headers['x-no-compression']
+				|| config.gzip !== undefined && !config.gzip
+				|| !sites[host].gzip
+			) {
+				return false
+			}
+			return compression.filter(req, res)
+		}
+	}))
 	serverHandler.all('*', (req, res) => {
 		const host = req.headers.host.split(':')[0]
 		if (ssl
@@ -180,9 +196,9 @@ function createServer(configPath, config) {
 			res.redirect(`https://${host}:${port}${req.url}`)
 			return
 		}
-		if (routes[host]) {
+		if (sites[host]) {
 			proxy.web(req, res, {
-				target: `http://127.0.0.1:${routes[host]}`,
+				target: `http://127.0.0.1:${sites[host].port}`,
 				ws: true
 			}, err => {
 				console.log(err)

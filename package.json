@@ -1,6 +1,6 @@
 {
   "name": "easy-pm",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "A simple and easy-to-use web server for managing Node.js projects.",
   "main": "./index.js",
   "bin": {
@@ -12,6 +12,7 @@
   "dependencies": {
     "cli-table": "^0.3.1",
     "commander": "^2.9.0",
+    "compression": "^1.6.2",
     "express": "^4.14.0",
     "fs-promise": "^1.0.0",
     "http-proxy": "^1.16.2",

@@ -15,6 +15,7 @@ A simple and easy-to-use web server for managing Node.js projects.
 - Easy Deployment from GitHub
 - Process Managing
 - Virtual Hosts
+- Gzip
 
 ## Installation
 
@@ -65,6 +66,7 @@ easy-pm will clone all projects and `npm start` them
 
 - **root** - *string* the directory to put your applications
 - **port** - *number* optional. the port easy-pm running on. default `80`
+- **gzip** - *boolean* optional. whether enable gzip for all applications. default `true`
 - **ssl** - *object* optional
     - **port** - *number* optional. the SSL port easy-pm running on. default `443`
     - **disable_redirect** - *boolean* optional. disable redirecting `http` requests to `https` for all sites. default `false`
@@ -78,6 +80,8 @@ easy-pm will clone all projects and `npm start` them
     - **token** - *string* GitHub token to access GitHub API
 - **apps** - *[object]*
     - **name** - *string* application name
+    - **port** - *number* the port this application running on
+    - **gzip** - *boolean* optional. whether enable gzip for this application. default `true`
     - **domains** - *[string]* optional. domains to access this application
     - **repository** - *string* optional. git address of this application
     - **branch** - *string* branch to work on. default `"master"`
