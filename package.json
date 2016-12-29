@@ -1,6 +1,8 @@
 {
   "name": "easy-pm",
-  "version": "0.4.2",
+  "version": "0.4.3",
+  "description": "A simple and easy-to-use web server for managing Node.js projects.",
+  "main": "./index.js",
   "bin": {
     "easy-pm": "bin/easy-pm.js"
   },
@@ -21,5 +23,25 @@
     "shelljs": "^0.7.5",
     "spdy": "^3.4.4",
     "username": "^2.2.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/imsun/easy-pm"
+  },
+  "keywords": [
+    "web server",
+    "process manager",
+    "http/2",
+    "https",
+    "deploy"
+  ],
+  "author": {
+    "name": "Shiquan Sun",
+    "url": "https://github.com/imsun"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/imsun/easy-pm/issues"
+  },
+  "homepage": "https://github.com/imsun/easy-pm"
 }
