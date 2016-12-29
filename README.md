@@ -11,6 +11,7 @@ A simple and easy-to-use web server for managing Node.js projects.
 
 - Automatic HTTPS
 - HTTP/2 & SPDY
+- WebSockets
 - Easy Deployment from GitHub
 - Process Managing
 - Virtual Hosts
@@ -105,6 +106,9 @@ $ easy-pm -h
 
 ## TODO
 
+- Tests
+- Hot Reloading
+- Multi-core
 - Travis CI
 - NVM
 
