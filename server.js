@@ -194,7 +194,7 @@ function createServer(configPath, config) {
 				const re = new RegExp(`^/hooks/${app.name}/?([\?|#].*)?$`)
 				return re.test(req.url)
 			})
-			if (hookedApp) {
+			if (hookedApp && req.headers['x-hub-signature']) {
 				const branch = hookedApp.branch || 'master'
 				const appPath = path.resolve(root, `${hookedApp.name}@${branch}`)
 				req.on('data', chunk => chunks.push(chunk))

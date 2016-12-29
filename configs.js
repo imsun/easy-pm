@@ -9,7 +9,8 @@ const configsFile = path.resolve(homeDir, './configs')
 program
 	.command('add <configPath>')
 	.action(configPath => {
-		fs.exists(homeDir)
+		fs.readFile(configPath)
+			.then(() => fs.exists(homeDir))
 			.then(exists => {
 				if (exists) {
 					return Promise.resolve()

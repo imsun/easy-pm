@@ -160,15 +160,16 @@ function stop(relConfigPath) {
 			})
 		})
 		.then(apps => new Promise(resolve => {
-			apps.forEach(app => {
-				if (app.pm2_env.epm_server) {
-					sendMessage(app.pm_id, {
-						command: 'stop',
-						data: [configPath]
-					})
-						.then(res => resolve(apps))
-				}
-			})
+			const epmServer = apps.find(app => app.pm2_env.epm_server)
+			if (epmServer) {
+				sendMessage(app.pm_id, {
+					command: 'stop',
+					data: [configPath]
+				})
+					.then(res => resolve(apps))
+			} else {
+				resolve(apps)
+			}
 		}))
 		.then(apps => Promise.all(
 			apps
