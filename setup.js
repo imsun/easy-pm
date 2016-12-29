@@ -44,14 +44,14 @@ function initFactory(root, config) {
 			.then(exists => {
 				if (!exists) {
 					if (app.repository) {
-						shell.exec(`git clone ${app.repository} ${appPath} && cd ${appPath} && git checkout ${branch} && npm install`)
+						shell.exec(`git clone ${app.repository} ${appPath} && cd ${appPath} && git checkout ${branch} && git submodule update --init --recursive && npm install`)
 					} else {
 						console.log(`Can't setup ${app.name}`)
 					}
 				} else {
 					shell.exec(`cd ${appPath} && git checkout ${branch}`, { silent: true })
 					console.log(`${appPath}: checking for updates...`)
-					shell.exec(`cd ${appPath} && git pull`)
+					shell.exec(`cd ${appPath} && git pull && git submodule update --init --recursive`)
 					console.log(`${appPath}: installing dependencies...`)
 					shell.exec(`cd ${appPath} && npm install --loglevel=error`)
 					console.log('Dependencies installed.')

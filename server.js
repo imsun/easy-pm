@@ -203,7 +203,7 @@ function createServer(configPath, config) {
 						const ghSignature = req.headers['x-hub-signature'].replace(/^sha1=/, '')
 						const signature = crypto.createHmac('sha1', config.webhook.token).update(body).digest('hex')
 						if (signature === ghSignature) {
-							shell.exec(`cd ${appPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} npm install`)
+							shell.exec(`cd ${appPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} git submodule update --init --recursive && ${rootPrefix} npm install`)
 						}
 					})
 			}
