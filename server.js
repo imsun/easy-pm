@@ -177,7 +177,7 @@ function createServer(configPath, config) {
 			const host = req.headers.host.split(':')[0]
 			if (req.headers['x-no-compression']
 				|| config.gzip !== undefined && !config.gzip
-				|| !sites[host].gzip
+				|| sites[host] && !sites[host].gzip
 			) {
 				return false
 			}
