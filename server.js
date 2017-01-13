@@ -10,7 +10,7 @@ const shell = require('shelljs')
 const pm2 = require('pm2')
 const proxy = require('http-proxy').createProxyServer({})
 const username = require('username')
-const resolveHome = require('./resolveHome')
+const { resolveHome } = require('./lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')

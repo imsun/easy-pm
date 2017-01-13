@@ -5,7 +5,7 @@ const shell = require('shelljs')
 const pm2 = require('pm2')
 const Table = require('cli-table')
 const username = require('username')
-const resolveHome = require('./resolveHome')
+const { resolveHome, uuid } = require('./lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
@@ -16,7 +16,6 @@ const setupScriptPath = path.resolve(__dirname, './setup.js')
 
 module.exports = { start, list, stop }
 
-const uuid = () => Date.now().toString(36) + Math.random().toString(36).substring(2)
 const __msgListeners = {}
 const sendMessage = (id, msg) => {
 	const msgId = uuid()
