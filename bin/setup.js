@@ -3,7 +3,7 @@ const http = require('http')
 const path = require('path')
 const request = require('request')
 const shell = require('shelljs')
-const { resolveHome } = require('./lib/_')
+const { resolveHome } = require('./../lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')

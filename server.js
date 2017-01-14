@@ -10,6 +10,8 @@ const shell = require('shelljs')
 const pm2 = require('pm2')
 const proxy = require('http-proxy').createProxyServer({})
 const username = require('username')
+
+const manager = require('./lib/manager')
 const { resolveHome } = require('./lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
@@ -37,10 +39,8 @@ const le = LE.create({
 	debug: false
 })
 
-const setupScriptPath = path.resolve(__dirname, './setup.js')
 const isRoot = process.getuid() === 0
 let rootPrefix = ''
-let startFlag = false
 let configPaths = []
 
 const servers = {}
@@ -58,90 +58,31 @@ process.on('message', function(packet) {
 		type : 'process:msg',
 		data : {
 			res,
-			id: packet.data.id,
+			id: packet.data.id
 		}
 	})
 })
 
-fs.readFile(startFlagFile, 'utf8')
-	.then(flag => {
-		startFlag = flag === '1'
-		return username()
-	})
+username()
 	.then(name => {
 		rootPrefix = isRoot ? `sudo -u ${name}` : ''
-		if (startFlag) return
-		shell.exec(`${rootPrefix} node ${setupScriptPath}`)
-		return new Promise((resolve, reject) => {
-			pm2.connect(err => {
-				if (err) return reject(err)
-
-				pm2.list((err, apps) => {
-					if (err) return reject(err)
-					resolve(apps)
-				})
-			})
-		})
-			.then(apps => Promise.all(
-				apps.filter(app => app.pm2_env.epm_config_path)
-					.map(app => new Promise((resolve, reject) => {
-						pm2.delete(app.pm_id, err => {
-							if (err) return reject(err)
-							resolve()
-						})
-					}))
-			))
-			.then(() => pm2.disconnect())
+		return fs.readFile(startFlagFile, 'utf8')
 	})
-	.then(() => fs.readFile(configsFile, 'utf8'))
-	.then(configsString => {
-		configPaths = configsString.split('\n').filter(s => !/^\s*$/.test(s))
+	.then(flag => {
+		if (flag === '1') {
+			return fs.readFile(configsFile, 'utf8')
+				.then(configsStr => configsStr.split('\n').filter(s => !/^\s*$/.test(s)))
+		} else {
+			return manager.setup()
+				.then(() => manager.deleteAll())
+				.then(() => manager.startAll())
+		}
+	})
+	.then(_configPaths => {
+		configPaths = _configPaths
 		return Promise.all(configPaths.map(configPath => fs.readFile(configPath, 'utf8')))
 	})
-	.then(configStrs => {
-		return new Promise((resolve, reject) => {
-			pm2.connect(err => {
-				if (err) return reject(err)
-				resolve(configStrs)
-			})
-		})
-	})
-	.then(configStrs => Promise.all(configStrs.map((configStr, index) => {
-		const configPath = configPaths[index]
-		const config = JSON.parse(configStr)
-		if (startFlag) return config
-
-		const root = path.resolve(configPath, '..', resolveHome(config.root))
-		const apps = config.apps.map(app => {
-			const branch = app.branch || 'master'
-			const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
-			app.env = Object.assign({
-				epm_config_path: configPath,
-				epm_server_port: config.port || 80,
-				PORT: app.port
-			}, app.env)
-			return Object.assign({
-				cwd: path.resolve(root, `${app.name}@${branch}`),
-				script: 'npm',
-				args: 'start',
-				watch: true
-			}, app, {
-				name: `${app.name}-${branch}-${configPathHash}`
-			})
-		})
-
-		return new Promise((resolve, reject) => {
-			pm2.start({ apps }, err => {
-				if (err) reject(err)
-				resolve(config)
-			})
-		})
-	})))
-	.then(configs => {
-		pm2.disconnect()
-		return configs
-	})
-	.then(configs => Promise.all(configs.map((config, index) => createServer(configPaths[index], config))))
+	.then(configStrs => Promise.all(configStrs.map((configStr, index) => createServer(configPaths[index], JSON.parse(configStr)))))
 	.then(() => fs.writeFile(startFlagFile, '0', 'utf8'))
 
 function stop(configPaths) {

@@ -1,18 +1,16 @@
 const fs = require('fs-promise')
 const path = require('path')
 const crypto = require('crypto')
-const shell = require('shelljs')
 const pm2 = require('pm2')
 const Table = require('cli-table')
 const username = require('username')
+
+const manager = require('./lib/manager')
 const { resolveHome, uuid } = require('./lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
 const startFlagFile = path.resolve(homeDir, './start_flag')
-
-const configsScriptPath = path.resolve(__dirname, './configs.js')
-const setupScriptPath = path.resolve(__dirname, './setup.js')
 
 module.exports = { start, list, stop }
 
@@ -48,120 +46,56 @@ pm2.launchBus((err, bus) => {
 })
 
 function start(relConfigPath) {
-	const isRoot = process.getuid() === 0
-
 	const configPath = path.resolve(process.cwd(), resolveHome(relConfigPath))
-	let configPaths = []
-	return new Promise((resolve, reject) => {
-		pm2.connect(err => {
-			if (err) return reject(err)
-
-			pm2.list((err, apps) => {
-				if (err) return reject(err)
-				resolve(apps)
-			})
-		})
-	})
-		.then(apps => Promise.all(
-			apps.filter(app => app.pm2_env.epm_config_path)
-				.map(app => new Promise((resolve, reject) => {
-					pm2.delete(app.pm_id, err => {
-						if (err) return reject(err)
-						resolve()
-					})
-				}))
-		))
-		.then(() => pm2.disconnect())
-		.then(() => username())
-		.then(name => {
-			const rootPrefix = isRoot ? `sudo -u ${name}` : ''
-			shell.exec(`${rootPrefix} node ${configsScriptPath} add ${configPath}`)
-			shell.exec(`${rootPrefix} node ${setupScriptPath}`)
-			console.log('\nStarting easy-pm-server...')
-		})
+	return manager.deleteAll()
+		.then(() => manager.addConfig(configPath))
+		.then(() => manager.setup())
+		.then(() => console.log('\nStarting easy-pm-server...'))
 		.then(() => fs.writeFile(startFlagFile, '1', 'utf8'))
-		.then(() => fs.readFile(configsFile, 'utf8'))
-		.then(configsStr => {
-			configPaths = configsStr.split('\n').filter(s => !/^\s*$/.test(s))
-			return Promise.all(configPaths.map(configPath => {
-				return fs.readFile(configPath, 'utf8')
-					.then(configStr => {
-						const config = JSON.parse(configStr)
-						const root = path.resolve(configPath, '..', resolveHome(config.root))
-						const apps = config.apps.map(app => {
-							const branch = app.branch || 'master'
-							const configPathHash = crypto.createHash('sha1').update(configPath).digest('hex')
-							app.env = Object.assign({
-								epm_config_path: configPath,
-								epm_server_port: config.port || 80,
-								PORT: app.port
-							}, app.env)
-							return Object.assign({
-								cwd: path.resolve(root, `${app.name}@${branch}`),
-								script: 'npm',
-								args: 'start',
-								watch: true
-							}, app, {
-								name: `${app.name}-${branch}-${configPathHash}`
-							})
-						})
+		.then(() => manager.startAll())
+		.then(configPaths => new Promise((resolve, reject) => {
+			pm2.connect(err => {
+				if (err) return reject(err)
 
-						return apps
-					})
-			}))
-		})
-		.then(appGroups => {
-			const apps = appGroups.reduce((prev, appList) => prev.concat(appList), [])
-			apps.push({
-				name: 'easy-pm-server',
-				script: './server.js',
-				watch: configPaths,
-				env: {
-					epm_server: true
-				}
-			})
-
-			return new Promise((resolve, reject) => {
-				pm2.connect(err => {
-					if (err) return reject(err)
-
-					pm2.start({ apps }, err => {
-						pm2.disconnect()
-						if (err) reject(err)
-						else resolve()
-					})
+				console.log(configPaths)
+				pm2.start({
+					name: 'easy-pm-server',
+					script: './server.js',
+					watch: configPaths,
+					env: {
+						epm_server: true
+					}
+				}, err => {
+					pm2.disconnect()
+					if (err) reject(err)
+					else resolve()
 				})
 			})
-		})
+		}))
 		.then(() => {
 			console.log('easy-pm-server started.\n')
-			return listByConfigs(configPaths)
+			return list()
 		})
 }
 
 function stop(relConfigPath) {
 	console.log('Stopping applications...')
-	const isRoot = process.getuid() === 0
 	const configPath = path.resolve(process.cwd(), resolveHome(relConfigPath))
-	username()
-		.then(name => {
-			const rootPrefix = isRoot ? `sudo -u ${name}` : ''
-			shell.exec(`${rootPrefix} node ${configsScriptPath} delete ${configPath}`)
-			return new Promise((resolve, reject) => {
-				pm2.connect(err => {
-					if (err) return reject(err)
+	manager.deleteConfig(configPath)
+		.then(() => new Promise((resolve, reject) => {
+			pm2.connect(err => {
+				if (err) return reject(err)
 
-					pm2.list((err, apps) => {
-						if (err) return reject(err)
-						resolve(apps)
-					})
+				pm2.list((err, apps) => {
+					if (err) return reject(err)
+					resolve(apps)
 				})
 			})
-		})
+		}))
 		.then(apps => new Promise(resolve => {
 			const epmServer = apps.find(app => app.pm2_env.epm_server)
 			if (epmServer) {
-				sendMessage(app.pm_id, {
+				sendMessage(epmServer.pm_id, {
 					command: 'stop',
 					data: [configPath]
 				})
