@@ -3,10 +3,8 @@ const http = require('http')
 const path = require('path')
 const request = require('request')
 const shell = require('shelljs')
-const { resolveHome, getAppDir } = require('./../lib/_')
-
-const homeDir = resolveHome('~/.easy-pm')
-const configsFile = path.resolve(homeDir, './configs')
+const { resolveHome, getAppDir } = require('../lib/utils')
+const { configsFile } = require('../lib/paths')
 
 fs.readFile(configsFile, 'utf8')
 	.then(configsStr => {

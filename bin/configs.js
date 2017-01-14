@@ -1,10 +1,7 @@
 const fs = require('fs-promise')
 const path = require('path')
 const program = require('commander')
-const { resolveHome } = require('./../lib/_')
-
-const homeDir = resolveHome('~/.easy-pm')
-const configsFile = path.resolve(homeDir, './configs')
+const { homeDir, configsFile } = require('../lib/paths')
 
 program
 	.command('add <configPath>')

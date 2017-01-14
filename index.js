@@ -6,11 +6,8 @@ const Table = require('cli-table')
 const username = require('username')
 
 const manager = require('./lib/manager')
-const { resolveHome, uuid } = require('./lib/_')
-
-const homeDir = resolveHome('~/.easy-pm')
-const configsFile = path.resolve(homeDir, './configs')
-const startFlagFile = path.resolve(homeDir, './start_flag')
+const { resolveHome, uuid } = require('./lib/utils')
+const { configsFile, startFlagFile } = require('./lib/paths')
 
 module.exports = { start, list, stop }
 
@@ -59,7 +56,7 @@ function start(relConfigPath) {
 
 				pm2.start({
 					name: 'easy-pm-server',
-					script: './server.js',
+					script: './task/server.js',
 					watch: configPaths,
 					env: {
 						epm_server: true

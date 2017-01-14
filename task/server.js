@@ -11,12 +11,9 @@ const pm2 = require('pm2')
 const proxy = require('http-proxy').createProxyServer({})
 const username = require('username')
 
-const manager = require('./lib/manager')
-const { resolveHome, getAppDir } = require('./lib/_')
-
-const homeDir = resolveHome('~/.easy-pm')
-const configsFile = path.resolve(homeDir, './configs')
-const startFlagFile = path.resolve(homeDir, './start_flag')
+const manager = require('../lib/manager')
+const { resolveHome, getAppDir } = require('../lib/utils')
+const { homeDir, configsFile, startFlagFile } = require('../lib/paths')
 
 const LE = require('letsencrypt')
 const leStore = require('le-store-certbot').create({
