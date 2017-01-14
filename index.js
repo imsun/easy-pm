@@ -57,7 +57,6 @@ function start(relConfigPath) {
 			pm2.connect(err => {
 				if (err) return reject(err)
 
-				console.log(configPaths)
 				pm2.start({
 					name: 'easy-pm-server',
 					script: './server.js',
