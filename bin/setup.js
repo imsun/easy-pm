@@ -3,7 +3,7 @@ const http = require('http')
 const path = require('path')
 const request = require('request')
 const shell = require('shelljs')
-const { resolveHome } = require('./../lib/_')
+const { resolveHome, getAppDir } = require('./../lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
@@ -38,7 +38,7 @@ function initFactory(root, config) {
 	}
 	return function(app) {
 		const branch = app.branch || 'master'
-		const appPath = path.resolve(root, `${app.name}@${branch}`)
+		const appPath = path.resolve(root, getAppDir(app))
 
 		fs.exists(appPath)
 			.then(exists => {
@@ -58,7 +58,7 @@ function initFactory(root, config) {
 				}
 
 				if (config.webhook && config.webhook.host && config.webhook.token && app.repository) {
-					const [, owner, repo] = app.repository.match(/.*?github\.com.(.+?)\/(.+?)\.git/)
+					const [, owner, repo] = app.repository.match(/.+?([^\/|:]+?)\/([^\/]+?)\.git/)
 
 					if (owner && repo) {
 						request({

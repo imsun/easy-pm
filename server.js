@@ -12,7 +12,7 @@ const proxy = require('http-proxy').createProxyServer({})
 const username = require('username')
 
 const manager = require('./lib/manager')
-const { resolveHome } = require('./lib/_')
+const { resolveHome, getAppDir } = require('./lib/_')
 
 const homeDir = resolveHome('~/.easy-pm')
 const configsFile = path.resolve(homeDir, './configs')
@@ -153,7 +153,7 @@ function createServer(configPath, config) {
 			})
 			if (hookedApp && req.headers['x-hub-signature']) {
 				const branch = hookedApp.branch || 'master'
-				const appPath = path.resolve(root, `${hookedApp.name}@${branch}`)
+				const appPath = path.resolve(root, getAppDir(hookedApp))
 				req.on('data', chunk => chunks.push(chunk))
 					.on('end', () => {
 						const body = Buffer.concat(chunks).toString()

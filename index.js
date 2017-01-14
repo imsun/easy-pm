@@ -148,11 +148,9 @@ function listByConfigs(configPaths) {
 				if (err) return reject(err)
 
 				apps.forEach(app => {
+					const name = app.pm2_env.epm_name
+					const branch = app.pm2_env.epm_branch
 					const configPath = app.pm2_env.epm_config_path
-					const pmName = app.name.split('-')
-					pmName.pop()
-					const branch = pmName.pop()
-					const name = pmName.join('-')
 					const pid = app.pid || 'N/A'
 					const status = app.pm2_env.status
 					const restart = app.pm2_env.restart_time
