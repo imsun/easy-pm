@@ -96,17 +96,23 @@ function createServer(configPath, config) {
 	const ssl = config.ssl
 
 	const sites = {}
-	config.apps.forEach(app => {
-		const port = app.env && app.env.PORT || app.port
-		const gzip = app.gzip === undefined ? true : app.gzip
-		if (app.domains && port) {
-			app.domains.forEach(domain => {
-				sites[domain] = sites[domain] || {}
-				sites[domain].port = port
-				sites[domain].gzip = gzip
+	manager.getAppsByConfig(configPath)
+		.then(apps => {
+			config.apps.forEach(app => {
+				const runningApp = apps.find(_app => _app.pm2_env.epm_name === app.name)
+				const port = runningApp && runningApp.pm2_env.PORT
+					|| app.env && app.env.PORT
+					|| app.port
+				const gzip = app.gzip === undefined ? true : app.gzip
+				if (app.domains && port) {
+					app.domains.forEach(domain => {
+						sites[domain] = sites[domain] || {}
+						sites[domain].port = port
+						sites[domain].gzip = gzip
+					})
+				}
 			})
-		}
-	})
+		})
 
 	const serverHandler = express()
 	serverHandler.use('/', le.middleware())
