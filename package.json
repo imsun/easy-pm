@@ -1,6 +1,6 @@
 {
   "name": "easy-pm",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "A simple and easy-to-use web server for managing Node.js projects.",
   "main": "./index.js",
   "bin": {
