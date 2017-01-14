@@ -16,6 +16,7 @@ A simple and easy-to-use web server for managing Node.js projects.
 - Process Managing
 - Virtual Hosts
 - Gzip
+- Static Server
 
 ## Installation
 
@@ -51,10 +52,15 @@ config.json:
   "apps": [
     {
       "name": "example",
-      "port": 8000,
       "domains": ["example.com", "www.example.com"],
       "repository": "git@github.com:your_github_id/example.git",
       "max_memory_restart": "100M"
+    },
+    {
+      "name": "static-example",
+      "domains": ["static-example.com"],
+      "repository": "git@github.com:your_github_id/example.git",
+      "branch": "gh-pages"
     }
   ]
 }
@@ -79,11 +85,13 @@ easy-pm will clone all projects and `npm start` them
     - **host** - *string* address of your server
     - **token** - *string* GitHub token to access GitHub API
 - **apps** - *[object]*
+    - **type** - *string* optional. can be `"node"` or `"static"`. default `"node"`
     - **name** - *string* application name
-    - **port** - *number* the port this application running on
+    - **port** - *number* optional. the port this application running on, the same as `env.PORT`. default a random free port
+    - **root** - *string* optional. root path for the static server in static mode. default `"./"`
     - **gzip** - *boolean* optional. whether enable gzip for this application. default `true`
     - **domains** - *[string]* optional. domains to access this application
-    - **repository** - *string* optional. git address of this application
+    - **repository** - *string* git address of this application
     - **branch** - *string* branch to work on. default `"master"`
     - **max_memory_restart** - *string* optional. maximum memory over which the application will be restarted, ends with "K", "M" or "G"
     - **env** - *object* optional. environment variables for this application
