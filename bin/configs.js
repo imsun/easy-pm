@@ -7,7 +7,11 @@ const { homeDir, configsDir, configsFile } = require('../lib/paths')
 program
 	.command('add <configPath>')
 	.action(configPath => {
-		fs.exists(configsDir)
+		fs.exists(homeDir)
+			.then(exists => {
+				if (!exists) return fs.mkdir(homeDir)
+			})
+			.then(() => fs.exists(configsDir))
 			.then(exists => {
 				if (!exists) return fs.mkdir(configsDir)
 			})
