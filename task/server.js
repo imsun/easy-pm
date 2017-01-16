@@ -150,24 +150,30 @@ function createServer(configPath, config) {
 			})
 		} else {
 			const chunks = []
-			const hookedApp = config.apps.find(app => {
-				const re = new RegExp(`^/hooks/${app.name}/?([\?|#].*)?$`)
-				return re.test(req.url)
-			})
-			if (hookedApp && req.headers['x-hub-signature']) {
-				const branch = hookedApp.branch || 'master'
-				const appPath = path.resolve(root, getAppDir(hookedApp))
+			let listeningApps = []
+
+			if (req.headers['x-hub-signature']) {
 				req.on('data', chunk => chunks.push(chunk))
 					.on('end', () => {
 						const body = Buffer.concat(chunks).toString()
 						const ghSignature = req.headers['x-hub-signature'].replace(/^sha1=/, '')
 						const signature = crypto.createHmac('sha1', config.webhook.token).update(body).digest('hex')
+
 						if (signature === ghSignature) {
-							shell.exec(`cd ${appPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} git submodule update --init --recursive && ${rootPrefix} npm install`)
+							const pushInfo = JSON.parse(body)
+							const branch = pushInfo.ref.split('/').pop()
+							const[, owner, repo] = req.url.match(/^\/hooks\/(.+?)\/(.+?)\/?([\?|#].*)?$/)
+							const repoPath = path.resolve(root, `${owner}/${repo}`)
+							shell.exec(`cd ${repoPath} && ${rootPrefix} git pull && ${rootPrefix} git checkout ${branch} && ${rootPrefix} git submodule update --init --recursive && ${rootPrefix} npm install`)
+							listeningApps = config.apps.filter(app => {
+								const [, appOwner, appRepo] = app.repository.match(/.+?([^\/|:]+?)\/([^\/]+?)\.git/)
+								const appBranch = app.branch || 'master'
+								return appOwner === owner && appRepo === repo && appBranch === branch
+							})
 						}
 					})
 			}
-			res.end()
+			res.end(JSON.stringify(listeningApps))
 		}
 	})
 	const server = http.createServer(serverHandler).listen(port)

@@ -25,7 +25,6 @@ function initFactory(root, config) {
 	const port = config.port || 80
 
 	const portPart = port === 80 || port === 443 ? '' : `:${port}`
-	const hooksRe = new RegExp(`^(.*?//)*${config.webhook.host}/hooks`, 'i')
 	const GITHUB_API_HOST = 'https://api.github.com'
 	const headers = {
 		'User-Agent': 'easy-pm',
@@ -57,8 +56,9 @@ function initFactory(root, config) {
 
 				if (config.webhook && config.webhook.host && config.webhook.token && app.repository) {
 					const [, owner, repo] = app.repository.match(/.+?([^\/|:]+?)\/([^\/]+?)\.git/)
-
 					if (owner && repo) {
+						const hooksRe = new RegExp(`^(.*?//)*${config.webhook.host}/hooks/${owner}/${repo}`, 'i')
+
 						request({
 							headers,
 							url: `${GITHUB_API_HOST}/repos/${owner}/${repo}/hooks`
@@ -81,7 +81,7 @@ function initFactory(root, config) {
 										active: true,
 										events: ['push'],
 										config: {
-											url: `${config.webhook.host}${portPart}/hooks/${app.name}`,
+											url: `${config.webhook.host}${portPart}/hooks/${owner}/${repo}`,
 											content_type: 'json',
 											secret: config.webhook.token
 										}
