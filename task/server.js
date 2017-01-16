@@ -161,6 +161,8 @@ function createServer(configPath, config) {
 
 						if (signature === ghSignature) {
 							const pushInfo = JSON.parse(body)
+							if (!pushInfo.ref) return
+
 							const branch = pushInfo.ref.split('/').pop()
 							const[, owner, repo] = req.url.match(/^\/hooks\/(.+?)\/(.+?)\/?([\?|#].*)?$/)
 							const repoPath = path.resolve(root, `${owner}/${repo}`)
