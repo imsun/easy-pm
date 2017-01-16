@@ -1,19 +1,21 @@
 const fs = require('fs-promise')
 const path = require('path')
 const program = require('commander')
-const { homeDir, configsFile } = require('../lib/paths')
+const { getHash } = require('../lib/utils')
+const { homeDir, configsDir, configsFile } = require('../lib/paths')
 
 program
 	.command('add <configPath>')
 	.action(configPath => {
-		fs.readFile(configPath)
+		fs.exists(configsDir)
+			.then(exists => {
+				if (!exists) return fs.mkdir(configsDir)
+			})
+			.then(() => fs.readFile(configPath))
+			.then(configStr => fs.writeFile(path.resolve(configsDir, getHash(configPath)), configStr))
 			.then(() => fs.exists(homeDir))
 			.then(exists => {
-				if (exists) {
-					return Promise.resolve()
-				} else {
-					return fs.mkdir(homeDir)
-				}
+				if (!exists) return fs.mkdir(homeDir)
 			})
 			.then(() => fs.appendFile(configsFile, '', 'utf8'))
 			.then(() => fs.readFile(configsFile, 'utf8'))
