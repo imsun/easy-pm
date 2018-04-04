@@ -88,7 +88,7 @@ Basic example:
 
 - **type** - *string* optional. Can be ["node"](#node), ["static"](#static) or ["custom"](#custom). Default `"node"`.
 - **name** - *string* Application name.
-- **port** - *number* optional. The port on which your application to run, passed to your application as `env.PORT`. Default a random free port.
+- **port** - *number* optional. The port used by your application is passed as `env.PORT`. Default is a random free port.
 - **gzip** - *boolean* optional. Whether enable gzip for this application. Default `true`.
 - **domains** - *[string]* optional. Domains to access this application.
 - **repository** - *string* Git address of this application.
@@ -98,7 +98,7 @@ Basic example:
 
 #### Node
 
-In node mode, easy-pm will `npm start` your application.
+In node mode, easy-pm will use `npm start` to your application.
 
 #### Static
 
